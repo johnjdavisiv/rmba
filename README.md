@@ -10,31 +10,31 @@
 
 Let's say you want to validate a new wearable heart rate monitor. You might get some subjects, outfit them with the new heart rate monitor and a "gold standard" device (like an ECG). Then, you could have them run on a treadmill at different speeds, measuring their heart rate using both the research-grade device and the new device.
 
-Now, how do you determine whether the new device is accurate? One extremely common approach is to make a scatterplot and compute an R<sup>2</sup> value. Unfortunately, this approach is deeply flawed, for two reasons.
+Now, how do you determine whether the new device is accurate? One extremely common approach is to make a scatterplot and compute an R<sup>2</sup> value. Unfortunately, this approach is flawed, for two reasons.
 
-**First**, scatter plots can be very misleading. Collecting a wider or a narrower range of data can make the correllation plot look artificially "good" or "bad." Observe:
+**First**, scatter plots can be deeply misleading. Collecting a wider or a narrower range of data can make the correllation plot look artificially "good" or "bad." Observe:
 
 ![](plots/corr_comparison.png)
 
-The data in the left panel is just a subset of the data on the right panel. Further, the true agreement between the devices is a constant amount (because I generated the data that way!). However, **the R<sup>2</sup> values are extremely misleading**!
+The data in the left panel are just a subset of the data in the right panel. Further, the true agreement between the devices is a constant amount (because I generated the data that way!). However, **the R<sup>2</sup> values are quite different**!
 
 On the left, the  R<sup>2</sup> value suggests poor agreement, while on the right, it suggests nearly perfect agreement.
 
-**Second**, computing a correllation coefficient on this dataset breaks a very important statistical assumption: our data are not independent. Since we've taken *repeated measures* on the same subjects in different conditions, we have introduced dependencies into our data.
+**Second**, computing a correllation coefficient when we have multiple measurements on the same people breaks a very important statistical assumption: our data are not independent. Since we've taken *repeated measures* on the same subjects in different conditions, we have introduced dependencies into our data.
 
 ## Mixed models for measuring agreement
 
-The usual solution to the "R<sup>2</sup> is misleading" problem is to make a [Bland-Altman plot](https://www.thelancet.com/retrieve/pii/S0140673686908378), which sounds extremely fancy but is, in truth, far simpler to do and to interpret even than an R<sup>2</sup> value.  
+The usual solution to the "R<sup>2</sup> is misleading" problem is to do [Bland-Altman analysis](https://www.thelancet.com/retrieve/pii/S0140673686908378), which sounds fancy but is, in truth, far simpler to implement and interpret even than an R<sup>2</sup> value.  
 
-However, even the classic Bland-Altman plot assumes independent observations—i.e. you can't use it when you have repeated measurements. There is a modified version that takes a repeated-measures-ANOVA-style approach, but even this tweak can't handle unbalanced data, missing data, and doesn't take into account the fact that the agreement between two devices might change in different conditions.
+However, even classic Bland-Altman analysis assumes independent observations—you can't use it when you have repeated measurements. There is a modified version that takes a repeated-measures-ANOVA-style approach, but even this tweak can't handle unbalanced or missing data, and it doesn't take into account the fact that the agreement between two devices might change in different conditions.
 
-A very elegant solution to this problem was described in a [2016 paper published by Parker et al. in PLOS ONE](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0168321). It uses linear mixed models to account for within-subject correlations, and on top of that, even accounts for variation across different conditions. In our example of validating a heart rate monitor, it's quite possible that agreement will be worse at different speeds.
+An elegant solution to this problem was described in a [2016 paper published by Parker et al. in PLOS ONE](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0168321). It uses linear mixed models to account for within-subject correlations, and on top of that, even accounts for variation across different conditions.  
 
-Parker et al's linear mixed model approach to Bland-Altman analysis (henceforth referred to as **rmba**) is easy to implement in R's `nlme` package. This repository houses `rmba()`, a convenient function to perform rmba on repeated-measures data.
+Parker et al's linear mixed model approach to Bland-Altman analysisis easy to implement in R's `nlme` package.
 
 ## Worked example
 
-`rmba` works as follows: with `rmba.R` in your current R directory, use `source("rmba.R")` to add the function to your workspace. The example below uses data from Parker et al. to reproduce the results for comparing respiratory rate for one new device (`RRacc`) to the gold-standard device(`RRox`). The actual results can be found in Table 1 of the paper.
+`rmba` works as follows: with `rmba.R` in your current R directory, use `source("rmba.R")` to add the function to your workspace. Below, we use data from Parker et al. to reproduce the results for comparing respiratory rate for one new device (`RRacc`) to the gold-standard device(`RRox`). The actual results can be found in Table 1 of the paper.
 
 ```
 
@@ -54,7 +54,7 @@ df %>%
 
 ![](plots/rmba_demo_figure.png)
 
-Notice what a mess this is: we have lots of unbalanced data (many subjects couldn't complete all of the conditions—these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine, reproducing the numbers in Table 1 of Parker et al. exactly. It's still good practice to import your data correctly (factors as factors, and all of that) but isn't *strictly* necessary.  
+Notice what a mess this is: we have lots of unbalanced data (many subjects couldn't complete all of the conditions—these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine, reproducing the numbers in Table 1 of Parker et al. exactly. It's still good practice to import your data correctly, of course (factors as factors, and all of that).  
 
 ## Input
 
@@ -102,7 +102,7 @@ $upper_agreement_limit
 
 Bland-Altman approaches are very easy to interpret. Our findings in the worked example can be summarized as follows:
 
-> The accelerometer-based device underestimated respiratory rate by 2.18 breaths per minute. With 95% confidence, we expect the accelerometer-based device to measure respiratory rate within the range of 8.63 breaths per minute below to 4.27 breaths per minute above the true respiratory rate, for any given activity.
+> The accelerometer-based device underestimated respiratory rate by 2.18 breaths per minute. With 95% confidence, we expect the accelerometer-based device to measure respiratory rate within the range of 8.63 breaths per minute below to 4.27 breaths per minute above the true respiratory rate, during any given activity.
 
 Parker et al. considered agreement of +/- 10 breaths per minute or less clinically acceptable, so this device was good enough for clinical use.
 
@@ -113,3 +113,9 @@ This method is so great because you could report these findings to a doctor or n
 Hopefully you find this function useful, and hopefully it will help lead to broader use of Bland-Altman analysis for validation studies in biomechanics, physiology, and wearable technology research. Drop me a line or open an issue if you find any issues with it. If you use this in research, be sure to cite both the Parker et al. paper and the `nlme()` package.
 
 -J
+
+## References
+
+ * Bland, J.M. and Altman, D., 1986. Statistical methods for assessing agreement between two methods of clinical measurement. The lancet, 327(8476), pp.307-310.  
+ * Parker, R.A., Weir, C.J., Rubio, N., Rabinovich, R., Pinnock, H., Hanley, J., McCloughan, L., Drost, E.M., Mantoani, L.C., MacNee, W. and McKinstry, B., 2016. Application of mixed effects limits of agreement in the presence of multiple sources of variability: Exemplar from the comparison of several devices to measure respiratory rate in COPD patients. PLOS ONE, 11(12).  
+ * Pinheiro J, Bates D, DebRoy S, Sarkar D, R Core Team (2020). nlme: Linear and Nonlinear Mixed Effects Models. R package version 3.1-147
