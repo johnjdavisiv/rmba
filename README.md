@@ -3,8 +3,8 @@
 ### Repeated-measure Bland-Altman analysis with mixed models
 
 **To-do**:   
- * Implement bootstrap confidence intervals to get confidence intervals
- * Add confidence intervals to interpretation
+ * ~~Implement bootstrap confidence intervals to get confidence intervals~~
+     * Figure out if this bootstrapping implementation is correct!
 
 ## Introduction
 
@@ -54,16 +54,17 @@ df %>%
 
 ![](plots/rmba_demo_figure.png)
 
-Notice what a mess this is: we have lots of unbalanced data (many subjects couldn't complete all of the conditions—these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine, reproducing the numbers in Table 1 of Parker et al. exactly. It's still good practice to import your data correctly, of course (factors as factors, and all of that).  
+Notice what a mess this is: we have unbalanced and missing data (these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine, reproducing the numbers in Table 1 of Parker et al. exactly. It's still good practice to import your data correctly, of course (factors as factors, and all of that).  
 
 ## Input
 
 ```
 #RRox is the gold standard measure. Compare RRacc agreement to RRox:
-rmba_res <- rmba(data = df, measure_one_col = "RRox",
-                   measure_two_col = "RRacc",
-                   condition_col = "Activity",
-                   id_col = "PatientID")
+rmba_res <- rmba(data = df,
+                 measure_one_col = "RRox",
+                 measure_two_col = "RRacc",
+                 condition_col = "Activity",
+                 id_col = "PatientID")
 rmba_res
 
 ```
@@ -79,7 +80,14 @@ rmba_res
 Programmatic useRs fear not; `rmba()` returns a `list` object with all the goodies stored inside:
 
 ```
-rmba_res <- rmba(df, "RRox", "RRacc", "Activity", "PatientID")
+rmba_res <- rmba(data = df,
+                 measure_one_col = "RRox",
+                 measure_two_col = "RRacc",
+                 condition_col = "Activity",
+                 id_col = "PatientID",
+                 bootstrap = TRUE,
+                 B = 500,
+                 seed = 123)
 rmba_res
 
 $bias
@@ -108,6 +116,38 @@ Parker et al. considered agreement of +/- 10 breaths per minute or less clinical
 
 This method is so great because you could report these findings to a doctor or nurse with no training in statistics, and he or she could understand the results and determine whether this device fits his or her needs.
 
+## Bootstrapping confidence intervals  
+
+I have also implemented parametric bootstrapping to estimate confidence intervals for all of the parameters estimated by `rmba`.  
+
+My implementation differs from Parker et al. in that I bootstrap the upper and lower limits of agreement (and everything else) directly from the bootstrap percentiles, as opposed to calculating them after bootstrapping by using a formula.  I had a hard time following the code in Parker et al. that implements this feature (it's not clear to me whether their code is actually resampling the random effects on each boostrap replicate).  
+
+The particular flavor of bootstrap is the "parametric random effects bootstrap coupled with residual bootstrap" detailed in [Thai et al. 2013](https://onlinelibrary.wiley.com/doi/abs/10.1002/pst.1561). The idea is to resample new random effects from a Gaussian with an SD of $\sigma_u$, and resample new residuals similarly using $\sigma_{\epsilon}$. Parker et al. use the same approach but appear to deviate slightly from the "vanilla" implementation in their code.
+
+My non-expert understanding is that bootstrapping a derived variable (in this case, $\beta_0 \pm 1.96*\sqrt{\sigma_u^2 + \sigma_{\epsilon}^2}$) is just as valid as bootstrapping anything else, but **there is a good chance I am mistaken**—I am not a statistician, so this feature should be considered experimental.
+
+Bootstrapping can be implemented as follows:
+
+```
+rmba_res_2 <- rmba(data = df,
+                 measure_one_col = "RRox",
+                 measure_two_col = "RRacc",
+                 condition_col = "Activity",
+                 id_col = "PatientID",
+                 bootstrap = TRUE,
+                 B = 500,
+                 seed = 123)
+
+rmba_res_2$boot_ci
+
+           bias   bias_se       sd lower_agreement_limit upper_agreement_limit
+2.5%  -2.628727 0.1743698 3.001475             -9.332041              3.588838
+97.5% -1.739819 0.3410288 3.571207             -7.889312              4.948094
+
+```
+
+While it's a bit silly to bootstrap the SE for the bias, it was easier to leave it in. Please drop me a line if you know whether or not this direct parametric boostrapping approach is flawed.
+
 ## Closing notes
 
 Hopefully you find this function useful, and hopefully it will help lead to broader use of Bland-Altman analysis for validation studies in biomechanics, physiology, and wearable technology research. Drop me a line or open an issue if you find any issues with it. If you use this in research, be sure to cite both the Parker et al. paper and the `nlme()` package.
@@ -118,4 +158,5 @@ Hopefully you find this function useful, and hopefully it will help lead to broa
 
  * Bland, J.M. and Altman, D., 1986. Statistical methods for assessing agreement between two methods of clinical measurement. The lancet, 327(8476), pp.307-310.  
  * Parker, R.A., Weir, C.J., Rubio, N., Rabinovich, R., Pinnock, H., Hanley, J., McCloughan, L., Drost, E.M., Mantoani, L.C., MacNee, W. and McKinstry, B., 2016. Application of mixed effects limits of agreement in the presence of multiple sources of variability: Exemplar from the comparison of several devices to measure respiratory rate in COPD patients. PLOS ONE, 11(12).  
+ * Thai, H.T., Mentré, F., Holford, N.H., Veyrat‐Follet, C. and Comets, E., 2013. A comparison of bootstrap approaches for estimating uncertainty of parameters in linear mixed‐effects models. Pharmaceutical statistics, 12(3), pp.129-140.
  * Pinheiro J, Bates D, DebRoy S, Sarkar D, R Core Team (2020). nlme: Linear and Nonlinear Mixed Effects Models. R package version 3.1-147

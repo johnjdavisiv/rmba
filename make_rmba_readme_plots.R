@@ -1,7 +1,6 @@
 #Plots for GitHub
 # JJD
 
-
 library(tidyverse)
 library(readxl)
 library(cowplot)
@@ -63,7 +62,6 @@ corr_2 <- ggplot(data=ex_df %>% filter(!between(gold_standard,115,160)),
 my_cow <- plot_grid(corr_1, corr_2, nrow=1)
 
 ggsave("corr_comparison.png", plot=my_cow, width=6, height=3, units="in")
-
 
 naive_plot <- df %>%
   ggplot(aes(x=RRox, y=RRacc)) + 
