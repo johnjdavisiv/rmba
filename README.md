@@ -37,7 +37,6 @@ Parker et al's linear mixed model approach to Bland-Altman analysisis easy to im
 `rmba` works as follows: with `rmba.R` in your current R directory, use `source("rmba.R")` to add the function to your workspace. Below, we use data from Parker et al. to reproduce the results for comparing respiratory rate for one new device (`RRacc`) to the gold-standard device(`RRox`). The actual results can be found in Table 1 of the paper.
 
 ```
-
 library(tidyverse)
 library(readxl)
 source("rmba.R")
@@ -49,7 +48,6 @@ df %>%
   ggplot(aes(x=RRox, y=RRacc, color = factor(PatientID))) +
   geom_point() +
   facet_wrap(~Activity)
-
 ```
 
 ![](plots/rmba_demo_figure.png)
@@ -65,29 +63,17 @@ rmba_res <- rmba(data = df,
                  measure_two_col = "RRacc",
                  condition_col = "Activity",
                  id_col = "PatientID")
-rmba_res
-
 ```
 
 ## Output
 
 ```
-
 [1] "Mean bias of RRacc compared to RRox: -2.183 with 95% limits of agreement [-8.631, 4.265]"
-
 ```
 
 Programmatic useRs fear not; `rmba()` returns a `list` object with all the goodies stored inside:
 
 ```
-rmba_res <- rmba(data = df,
-                 measure_one_col = "RRox",
-                 measure_two_col = "RRacc",
-                 condition_col = "Activity",
-                 id_col = "PatientID",
-                 bootstrap = TRUE,
-                 B = 500,
-                 seed = 123)
 rmba_res
 
 $bias
@@ -104,7 +90,6 @@ $lower_agreement_limit
 
 $upper_agreement_limit
 [1] 4.265176
-
 ```
 ## Interpretation
 
@@ -146,7 +131,7 @@ rmba_res_2$boot_ci
 
 ```
 
-While it's a bit silly to bootstrap the SE for the bias, it was easier to leave it in. Please drop me a line if you know whether or not this direct parametric boostrapping approach is flawed.
+While it's a bit silly to bootstrap the SE for the bias, it was easier to leave it in. Please let me know if this direct parametric boostrapping approach is flawed.
 
 ## Closing notes
 
