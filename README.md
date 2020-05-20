@@ -114,7 +114,7 @@ My implementation differs from Parker et al. in that I bootstrap the upper and l
 
 The particular flavor of bootstrap is the "parametric random effects bootstrap coupled with residual bootstrap" detailed in [Thai et al. 2013](https://onlinelibrary.wiley.com/doi/abs/10.1002/pst.1561). The idea is to resample new random effects from a Gaussian with an SD equal to the estimated SD of the random effects, and resample new residuals similarly using the estimated SD of the residuals.
 
-My non-expert understanding is that bootstrapping a derived variable (in this case, the limits of agreement is just as valid as bootstrapping anything else, **but there is a good chance I am mistaken**—I am not a statistician, so this feature should be considered experimental and possibly incorrect.
+My non-expert understanding is that bootstrapping a derived variable (in this case, the limits of agreement) is just as valid as bootstrapping anything else, **but there is a good chance I am mistaken**—I am not a statistician, so this feature should be considered experimental and possibly incorrect.
 
 Bootstrapping can be implemented as follows:
 
