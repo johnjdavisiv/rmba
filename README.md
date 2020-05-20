@@ -8,7 +8,7 @@
 
 ## Introduction
 
-Let's say you want to validate a new wearable heart rate monitor. You might get some subjects, outfit them with the new heart rate monitor and a "gold standard" device (like an ECG). Then, you could have them run on a treadmill at different speeds, measuring their heart rate using both the research-grade device and the new device.
+Let's say you want to validate a new wearable heart rate monitor. You might get some subjects, outfit them with the new heart rate monitor and a "gold standard" device (like an ECG-based heart rate monitor). Then, you could have your subjects run on a treadmill at different speeds and inclines, measuring their heart rate using both the research-grade device and the new device.
 
 Now, how do you determine whether the new device is accurate? One extremely common approach is to make a scatterplot and compute an R<sup>2</sup> value. Unfortunately, this approach is flawed, for two reasons.
 
@@ -30,11 +30,13 @@ However, even classic Bland-Altman analysis assumes independent observations—y
 
 An elegant solution to this problem was described in a [2016 paper published by Parker et al. in PLOS ONE](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0168321). It uses linear mixed models to account for within-subject correlations, and on top of that, even accounts for variation across different conditions.  
 
-Parker et al's linear mixed model approach to Bland-Altman analysisis easy to implement in R's `nlme` package.
+`rmba` is my attempt to make Parker et al.'s approach simple and easy to use, by providing a wrapper to the appropriate calls to R's `nlme` package.
 
 ## Worked example
 
-`rmba` works as follows: with `rmba.R` in your current R directory, use `source("rmba.R")` to add the function to your workspace. Below, we use data from Parker et al. to reproduce the results for comparing respiratory rate for one new device (`RRacc`) to the gold-standard device(`RRox`). The actual results can be found in Table 1 of the paper.
+`rmba` works as follows: with `rmba.R` in your current R directory, use `source("rmba.R")` to add the function to your workspace. Below, we use data from Parker et al. to reproduce the results for comparing respiratory rate for one new device (`RRacc`) to the gold-standard device(`RRox`).
+
+Notice that (as would be the case for plotting, or for doing any kind of regression analysis) the data are in "long" format.  
 
 ```
 library(tidyverse)
@@ -52,7 +54,7 @@ df %>%
 
 ![](plots/rmba_demo_figure.png)
 
-Notice what a mess this is: we have unbalanced and missing data (these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine, reproducing the numbers in Table 1 of Parker et al. exactly. It's still good practice to import your data correctly, of course (factors as factors, and all of that).  
+The data are a bit of a mess: we have unbalanced and missing data (these were patients with COPD; many could not walk on the treadmill). Astute useRs will notice that we didn't even bother to specify `PatientID` and `Activity` as factors, yet `rmba()` will handle all of this just fine. It's still good practice to import your data correctly, of course (factors as factors, and all of that).  
 
 ## Input
 
@@ -91,6 +93,9 @@ $lower_agreement_limit
 $upper_agreement_limit
 [1] 4.265176
 ```
+
+The numbers above correspond exactly to the numbers in Table 1 in Parker et al. Repeating the analysis for the other devices also returns a perfect match, making me reasonbly confident that this implementation is correct.  
+
 ## Interpretation
 
 Bland-Altman approaches are very easy to interpret. Our findings in the worked example can be summarized as follows:
@@ -105,11 +110,11 @@ This method is so great because you could report these findings to a doctor or n
 
 I have also implemented parametric bootstrapping to estimate confidence intervals for all of the parameters estimated by `rmba`.  
 
-My implementation differs from Parker et al. in that I bootstrap the upper and lower limits of agreement (and everything else) directly from the bootstrap percentiles, as opposed to calculating them after bootstrapping by using a formula.  I had a hard time following the code in Parker et al. that implements this feature (it's not clear to me whether their code is actually resampling the random effects on each boostrap replicate).  
+My implementation differs from Parker et al. in that I bootstrap the upper and lower limits of agreement (and everything else) directly from the bootstrap percentiles. When I was following the supplementary code to Parker et al. it wasn't completely clear to me whether their code is resampling the random effects on each boostrap replicate, which is what should be happening.  
 
-The particular flavor of bootstrap is the "parametric random effects bootstrap coupled with residual bootstrap" detailed in [Thai et al. 2013](https://onlinelibrary.wiley.com/doi/abs/10.1002/pst.1561). The idea is to resample new random effects from a Gaussian with an SD of $\sigma_u$, and resample new residuals similarly using $\sigma_{\epsilon}$. Parker et al. use the same approach but appear to deviate slightly from the "vanilla" implementation in their code.
+The particular flavor of bootstrap is the "parametric random effects bootstrap coupled with residual bootstrap" detailed in [Thai et al. 2013](https://onlinelibrary.wiley.com/doi/abs/10.1002/pst.1561). The idea is to resample new random effects from a Gaussian with an SD equal to the estimated SD of the random effects, and resample new residuals similarly using the estimated SD of the residuals.
 
-My non-expert understanding is that bootstrapping a derived variable (in this case, $\beta_0 \pm 1.96*\sqrt{\sigma_u^2 + \sigma_{\epsilon}^2}$) is just as valid as bootstrapping anything else, but **there is a good chance I am mistaken**—I am not a statistician, so this feature should be considered experimental.
+My non-expert understanding is that bootstrapping a derived variable (in this case, the limits of agreement is just as valid as bootstrapping anything else, **but there is a good chance I am mistaken**—I am not a statistician, so this feature should be considered experimental and possibly incorrect.
 
 Bootstrapping can be implemented as follows:
 
@@ -131,11 +136,11 @@ rmba_res_2$boot_ci
 
 ```
 
-While it's a bit silly to bootstrap the SE for the bias, it was easier to leave it in. Please let me know if this direct parametric boostrapping approach is flawed.
+In reality, you would probably use 2000 or 10000 bootstrap replicates; 500 is just for the sake of speed here. While it's a bit silly to bootstrap the SE for the bias, it was easier to leave it in.  
 
 ## Closing notes
 
-Hopefully you find this function useful, and hopefully it will help lead to broader use of Bland-Altman analysis for validation studies in biomechanics, physiology, and wearable technology research. Drop me a line or open an issue if you find any issues with it. If you use this in research, be sure to cite both the Parker et al. paper and the `nlme()` package.
+Hopefully you find this function useful, and maybe it will even lead to broader use of Bland-Altman analysis for validation studies in biomechanics, physiology, and wearable technology research. Drop me a line or open an issue if you find any problems with it. If you use this in research, be sure to cite both the Parker et al. paper and the `nlme()` package.
 
 -J
 
