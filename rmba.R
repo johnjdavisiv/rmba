@@ -1,4 +1,4 @@
-#Repeated measrues bland altman
+#Repeated measures bland altman with mixed models
 #Following Parker et al 2016 (doi:10.1371/journal.pone.0168321)
 #John J Davis IV
 #17 May 2020
@@ -10,16 +10,20 @@
 # data - dataframe
 # measure_one_col - string name of column with first measure (or gold standard)
 # measure_two_col - string name of column with second measure
-# condition_col - name of column with (factor) conditions
+# condition_col - name of column with (factor) conditions. Leave blank to not adjust for any conditions
 # id_col - string name of column with IDs (patients, etc.)
 # loa_level - limit of agreement percent (default: 0.95 for 95% LoA)
 # verbose - print results?
-# bootstrap - use parametric bootstrap to estimate CIs? (can be slow!)
-# B - bootstrap resamples 
+# bootstrap - use parametric bootstrap to estimate CIs? (Experimental!)
+# bootstrap_ci_level - confidence level for bootstrapping. Defaults to 95%
+# B - number of bootstrap resamples 
 # seed - rng seed for bootstrapping
 
 #Output:
 # rmba_results: a list with the mean bias, se of mean bias, total SD, and limits of agreement
+# Results are returned as measure two COMPARED TO measure one. 
+# If one of your measures is a gold standard, it should be measure one. 
+
 
 #-------------------------------------------------------
 #         Primary function   
@@ -39,6 +43,7 @@ rmba <- function(data,
 
   require(nlme)
   
+  #In case user wants something other than 95% LoA
   se_mult <- qnorm(1-(1-loa_level)/2)
   
   #Unlist for tibble messiness
@@ -64,18 +69,18 @@ rmba <- function(data,
   total_sd <- sqrt(between_sd^2 + within_sd^2)
   
   #Model two: intercept only
-  #"extracts appropriately weighted mean and standard error
+  #"extracts appropriately weighted mean and standard error" - Parker et al.
   model_two <- lme(measure_diff_rmba ~ 1, random = lme_id_form,
                    correlation = corCompSymm(form = lme_id_form),
                    data = data,
                    na.action = na.omit)
   
-  #Intercept of the intercept only is the mean bias
+  #Intercept of the intercept only model is the mean bias
   #  The standard error of that metric is the SE of the mean bias
   mean_bias <- summary(model_two)$tTable[1,1]
   mean_bias_se <- summary(model_two)$tTable[1,2]
   
-  #Calculate 95% limits of agreement
+  #Calculate 95% (or whatever percent) limits of agreement
   lo_limit <- mean_bias - se_mult*total_sd
   hi_limit <- mean_bias + se_mult*total_sd
   
@@ -102,7 +107,7 @@ rmba <- function(data,
       setTxtProgressBar(prog_bar,b)
     }
     
-    #A silly option that nobody will probably ever use
+    #Probabilities for bootstrap confidence level
     boot_probs <- c((1-bootstrap_ci_level)/2, 
                     1-(1-bootstrap_ci_level)/2)
     
@@ -216,7 +221,7 @@ rmba_resample <- function(data,
 #         Fitting new model to resampled data     
 #-------------------------------------------------------
 
-#Helper function that refits a new model to resampled Yij values
+#Helper function that refits a new model to resampled Yij difference values
 rmba_boot <- function(boot_data,
                       loa_level = 0.95) {
   
