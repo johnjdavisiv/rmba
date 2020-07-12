@@ -43,7 +43,7 @@ library(tidyverse)
 library(readxl)
 source("rmba.R")
 
-df <- read_excel("Parker et al 2016 dataset.xlsx")
+df <- read_excel("Parker et al 2016 dataset.xlsx") %>%
   select(PatientID, Activity, RRox, RRacc)
 
 df %>%
